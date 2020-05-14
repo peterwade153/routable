@@ -1,3 +1,4 @@
 Django==3.0.6
+django-object-actions==2.0.0
 djangorestframework==3.11.0
 

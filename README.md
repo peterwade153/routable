@@ -1,7 +1,7 @@
 # routable
 
 ### DESCRIPTION
-Django REST API that powers routable.
+Django REST API powering routable.
 
 The API is Built with Python 3.7, Django 3.0 and Django Rest Framework 3.11 and a SQLite Database.
 
@@ -46,21 +46,27 @@ make superuser
 ```
 make start
 ```
-The application can be accessed at http://localhost:8000/api/
+The application can be accessed at `http://localhost:8000/` with the endpoints, as described below.
 
-Available API routes
+An API client like POSTMAN can be used to perform the actions below.
+
 
 ### Endpoints
-Below are the available Endpoints and their sample json payloads. 
-They are accessed by appending them to the base_url i.e (http://localhost:8000/api/items to create an item.). 
-The `Content-Type` should be set to `application/json`
+Below are the available Endpoints and sample json payloads.
+
+They are accessed by appending them to the base_url i.e (`http://localhost:8000/api/items` to create an item.).
+
+The Endpoints with `uuid` in the url. Replace it with the actual generated item id.
+
+The `Content-Type` should be set to `application/json`. 
 
 Request | Endpoints             |       Functionality 
 --------|-----------------------|--------------------------------
-POST    |  `/items`             |  Creates a new Item. payload:-	`{"amount" : 1234}`
-POST    |  `/items/transaction `|  Creates a new Transaction. payload- `{"item":  "c5470044-a61d-4019-99ed-4c1d0dff793f", "status": "processing", "location": "origination_bank"}`  
-PUT     |  `/items/move/uuid/ ` |  Move Item. 
-PUT     |  `/items/error/uuid/` |  Error Item.
+POST    |  `/items `            |  Creates a new Item. `payload` -	`{"amount" : 1234}`
+POST    |  `/items/transaction` |  Creates a new Transaction. `payload` - `{"item":  "c5470044-a61d-4019-99ed-4c1d0dff793f", "status": "processing", "location": "origination_bank"}`  
+PUT     |  `/items/move/uuid/`  |  Move Item. 
+PUT     |  `/items/error/uuid/` |  Error Item transaction to error state.
+PUT     |  `/items/fix/uuid/`   |  Fix Item with transaction in error state.
 
 
 ### Admin Pages

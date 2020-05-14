@@ -6,16 +6,19 @@ from rest_framework.views import status
 
 from api.models import Item, Transaction
 
+import json
 
 class RoutableAPITestCase(APITestCase):
 
     def setUp(self):
         self.item_1 = Item.objects.create(amount=1234)
         self.item_2 = Item.objects.create(amount=1000)
+        self.item_3 = Item.objects.create(amount=1000)
         self.transaction = Transaction.objects.create(
             item=self.item_2, 
             status="processing",
-            location="origination_bank")
+            location="origination_bank"
+        )
 
 
     def test_create_item(self):
@@ -31,24 +34,35 @@ class RoutableAPITestCase(APITestCase):
 #Transaction tests
 
     def test_create_item_transaction(self):
-        data = {"item": self.item_1.id, "status":"processing", "location":"origination_bank"}
+        data = {
+            "item": self.item_1.id, 
+            "status":"processing", 
+            "location":"origination_bank"
+        }
         res = self.client.post('/api/items/transaction', data)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
     def test_create_transaction_for_nonexistant_item(self):
         item_id = "d0ef03f4-e2e9-4830-98bd-2df78db5da65"
-        data = {"item": item_id, "status":"processing", "location":"origination_bank"}
+        data = {
+            "item": item_id, 
+            "status":"processing", 
+            "location":"origination_bank"
+        }
         res = self.client.post('/api/items/transaction', data)
         self.assertEqual(res.data, "Item doesnt exist")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_item_transaction_with_invalid_status_and_location(self):
         """
-        A new transaction must have status =  processing and 
-        location = origination_bank. Anything else should raise errors as it will an
-        Invalid flow.
+        A new transaction must have status = processing and 
+        location = origination_bank.
         """
-        data = {"item": self.item_1.id, "status":"processing", "location":"routable"}
+        data = {
+            "item": self.item_1.id, 
+            "status":"processing", 
+            "location":"routable"
+        }
         res = self.client.post('/api/items/transaction', data)
         self.assertEqual(
             res.data, 
@@ -63,7 +77,7 @@ class RoutableAPITestCase(APITestCase):
             "location":"origination_bank"
         }
         res = self.client.post('/api/items/transaction', data)
-        self.assertEqual(res.data, "Item Transaction processing")
+        self.assertEqual(res.data, "There is an active transaction for this item")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_item_transaction_with_completed_transactions(self):
@@ -75,26 +89,23 @@ class RoutableAPITestCase(APITestCase):
         self.client.put(reverse('move_item', kwargs={'pk':self.item_2.id})) #moves item to routable
         self.client.put(reverse('move_item', kwargs={'pk':self.item_2.id})) #moves item to completed
         res = self.client.post('/api/items/transaction', data)
-        self.assertEqual(res.data, "Item is transaction completed")
+        self.assertEqual(res.data, "Item transaction completed")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_create_item_transaction_after_error(self):
-        item = Item.objects.create(amount=12345)
+    def test_create_item_transaction_with_refunded_transaction(self):
+        Transaction.objects.create(
+            item_id=self.item_3.id, 
+            status="refunded", 
+            location="origination_bank"
+        )
         data = {
-            "item": item.id, 
+            "item": self.item_3.id, 
             "status":"processing", 
             "location":"origination_bank"
         }
-        Transaction.objects.create(
-            item=item, 
-            status="processing",
-            location="origination_bank"
-        )
-        self.client.put(reverse('move_item', kwargs={'pk':item.id})) #moves item to routable
-        self.client.put(reverse('error_item', kwargs={'pk':item.id})) #error item
         res = self.client.post('/api/items/transaction', data)
-        self.assertEqual(res.data, "New Transaction created")
-
+        self.assertEqual(res.data, "Item transaction refunded")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 # Move Item Tests
 
@@ -160,7 +171,7 @@ class RoutableAPITestCase(APITestCase):
         res = self.client.put(reverse('error_item', kwargs={'pk':item_id}))
         self.assertEqual(
             res.data, 
-            "Item has no active transaction or transaction location is not routable or Item doesnt exist"
+            "Action failed"
             )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -176,7 +187,7 @@ class RoutableAPITestCase(APITestCase):
         res = self.client.put(reverse('error_item', kwargs={'pk':item.id}))
         self.assertEqual(
             res.data, 
-            'Item has no active transaction or transaction location is not routable or Item doesnt exist'
+            'Action failed'
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -190,7 +201,7 @@ class RoutableAPITestCase(APITestCase):
         res = self.client.put(reverse('error_item', kwargs={'pk':item.id}))
         self.assertEqual(
             res.data, 
-            'Item has no active transaction or transaction location is not routable or Item doesnt exist'
+            'Action failed'
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -204,5 +215,45 @@ class RoutableAPITestCase(APITestCase):
         self.client.put(reverse('move_item', kwargs={'pk':item.id})) # moves transaction location to routable
         self.client.put(reverse('error_item', kwargs={'pk':item.id}))
         res = self.client.put(reverse('error_item', kwargs={'pk':item.id}))
-        self.assertEqual(res.data, 'Item transaction already errored')
+        self.assertEqual(res.data, 'Action failed')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# test fixing transaction
+
+    def test_fix_item_transaction(self):
+        item = Item.objects.create(amount=12345)
+        Transaction.objects.create(
+            item=item, 
+            status="processing",
+            location="origination_bank"
+        )
+        self.client.put(reverse('move_item', kwargs={'pk':item.id})) # moves transaction location to routable
+        self.client.put(reverse('error_item', kwargs={'pk':item.id})) #move transaction status to error
+        res = self.client.put(reverse('fix_item', kwargs={'pk':item.id}))
+        self.assertEqual(res.data, 'Fixing Item transaction')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_fix_non_existant_item(self):
+        item_id = "d0ef03f4-e2e9-4830-98bd-2df78db5da65"
+        res = self.client.put(reverse('fix_item', kwargs={'pk':item_id}))
+        self.assertEqual(
+            res.data,
+            "Action failed"
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_fix_item_transaction_with_status_not_error(self):
+        item = Item.objects.create(amount=12345)
+        Transaction.objects.create(
+            item=item, 
+            status="processing",
+            location="origination_bank"
+        )
+        self.client.put(reverse('move_item', kwargs={'pk':item.id})) # moves transaction location to routable
+        res = self.client.put(reverse('fix_item', kwargs={'pk':item.id}))
+        self.assertEqual(
+            res.data, 
+            'Action failed'
+            )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)

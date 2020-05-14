@@ -19,7 +19,6 @@ class Item(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-
     def get_new_item_state(self, trans_status):
         """
         Returns the next possible item state
@@ -28,8 +27,15 @@ class Item(models.Model):
             return self.PROCESSING
         elif trans_status == Transaction.ERROR:
             return self.ERROR
-        elif trans_status == Transaction.COMPLETED:
+        elif trans_status in [Transaction.COMPLETED, Transaction.REFUNDED]:
             return self.RESOLVED
+        elif trans_status in [Transaction.REFUNDING, Transaction.FIXING]:
+            return self.CORRECTING
+
+    def update_item_state(self, trans_status):
+        new_state = self.get_new_item_state(trans_status)
+        self.state = new_state
+        self.save()
 
     class Meta:
         ordering = ('-created_at', )
@@ -37,11 +43,20 @@ class Item(models.Model):
 
 class Transaction(models.Model):
 
-    PROCESSING, COMPLETED, ERROR = ('processing', 'completed', 'error')
+    PROCESSING = 'processing'
+    COMPLETED = 'completed'
+    ERROR = 'error'
+    REFUNDING = 'refunding'
+    REFUNDED = 'refunded'
+    FIXING = 'fixing'
+
     STATUS_CHOICES = (
         (PROCESSING, 'Processing'),
         (COMPLETED, 'Completed'),
         (ERROR, 'Error'),
+        (REFUNDING,'Refunding'),
+        (REFUNDED, 'Refunded'),
+        (FIXING, 'Fixing'),
     )
 
     ORIGIN, ROUTABLE, DESTINATION = ('origination_bank', 'routable', 'destination_bank')
@@ -62,10 +77,9 @@ class Transaction(models.Model):
 
     def save(self, *args, **kwargs):
         # Sets transaction to Inactive when its' status is completed
-        if self.status == self.COMPLETED:
+        if self.status in [self.COMPLETED, self.REFUNDED]:
             self.is_active = False
         super(Transaction, self).save(*args, **kwargs)
-
 
     def get_new_transaction_state(self):
         """
@@ -77,7 +91,23 @@ class Transaction(models.Model):
             return self.PROCESSING, self.ROUTABLE
         elif status == self.PROCESSING  and location == self.ROUTABLE:
             return self.COMPLETED, self.DESTINATION
+        elif status == self.FIXING and location == self.ROUTABLE:
+            return self.PROCESSING, self.ROUTABLE
+        elif status == self.REFUNDING and location == self.ROUTABLE:
+            return self.REFUNDED, self.ORIGIN
 
+    def deactivate_transaction(self):
+        self.is_active = False
+        self.save()
+
+    def error_transaction(self):
+        self.status = Transaction.ERROR
+        self.save()
+    
+    def move_transaction(self, new_status, new_location):
+        self.status = new_status
+        self.location = new_location
+        self.save()
 
     class Meta:
-        ordering = ('-created_at', )
+        ordering = ('-created_at',)
