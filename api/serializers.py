@@ -6,10 +6,12 @@ from api.models import Item, Transaction
 class ItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
-        fields = ['id', 'amount', 'created_at', 'updated_at', 'state']
+        read_only_fields = ['id' , 'created_at', 'updated_at', 'state']
+        fields = read_only_fields + ['amount']
 
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ['id', 'item', 'status', 'location', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_active', 'created_at', 'updated_at']
+        fields = read_only_fields + ['item', 'status', 'location']
