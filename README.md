@@ -25,26 +25,39 @@ cd routable
 
 ```
 
-3. Install dependencies
+3. To Install application dependencies
 
 ```
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
-4. Run migrations
+4. To run migrations
 
 ```
-make migrations
+make migrate
+```
+OR
+```
+python3 manage.py migrate
 ```
 
-5. Create a super user with credentials to access admin pages. 
+5. To Create a super user with credentials to access admin pages. 
 ```
 make superuser
 ```
+OR
+```
+python3 manage.py createsuperuser
+```
 
-6. Run Application
+
+6. To start Application
 ```
 make start
+```
+OR
+```
+python3 manage.py runserver
 ```
 The application can be accessed at `http://localhost:8000/` with the endpoints, as described below.
 

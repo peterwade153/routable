@@ -1,6 +1,7 @@
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from drf_yasg.utils import swagger_auto_schema
 
 from api.models import Item, Transaction
 from api.serializers import ItemSerializer, TransactionSerializer
@@ -12,6 +13,8 @@ class ItemCreateView(APIView):
     params :
         - amount
     """
+
+    @swagger_auto_schema(request_body=ItemSerializer,operation_description="Create transaction item")
     def post(self, request):
         serializer = ItemSerializer(data=request.data)
         if serializer.is_valid():
@@ -30,6 +33,7 @@ class TransactionCreateView(APIView):
         - status = processing
         - location = origination_bank
     """
+    @swagger_auto_schema(request_body=TransactionSerializer, operation_description='Create Item Transaction')
     def post(self, request):
         data = request.data
         item_pk = data.get('item', None)
