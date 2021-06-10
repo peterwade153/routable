@@ -1,4 +1,4 @@
-Django==3.0.7
+Django==3.1.12
 django-object-actions==2.0.0
 djangorestframework==3.11.0
 drf-yasg==1.17.1
